@@ -350,9 +350,9 @@
 
         <!-- Post header -->
         <div class="card__subheading">Post header</div>
-        <md-outlined-text-field id="f-title" label="Post title" value="Experiences meeting MLH players?" oninput="renderPreview()"></md-outlined-text-field>
+        <md-outlined-text-field id="f-title" label="Post title" value="Here's a Reddit post" oninput="renderPreview()"></md-outlined-text-field>
         <div class="field-row">
-          <md-outlined-text-field id="f-op" label="OP Username" value="zamboniluvr69" oninput="renderPreview()"></md-outlined-text-field>
+          <md-outlined-text-field id="f-op" label="OP Username" value="fakeusername" oninput="renderPreview()"></md-outlined-text-field>
           <md-outlined-text-field id="f-posttime" label="Post time" value="10h ago" oninput="renderPreview()"></md-outlined-text-field>
         </div>
         <div class="field-row">
@@ -364,7 +364,7 @@
         <!-- Text post body -->
         <div id="f-body-wrap">
           <label class="field__textarea-label">Post body</label>
-          <textarea class="field__textarea" id="f-body" oninput="renderPreview()">It's the off-season and mods are asleep (shhh), so share some moments you've had running into MLH players in the wild. Don't lie because that's fucking lame.</textarea>
+          <textarea class="field__textarea" id="f-body" oninput="renderPreview()">This is your sample post body!</textarea>
         </div>
 
         <!-- Image post fields -->
@@ -480,7 +480,7 @@ function applyPreset(val) {
     document.getElementById('f-subicon').value = 'https://styles.redditmedia.com/t5_2qi63/styles/communityIcon_usbwy7w5ays01.png';
   } else {
     theme = 'default';
-    document.getElementById('f-subreddit').value = 'r/hockey';
+    document.getElementById('f-subreddit').value = 'r/fakesubreddit';
     document.getElementById('f-subicon').value = '';
   }
   renderPreview();
