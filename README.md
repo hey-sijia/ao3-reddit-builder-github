@@ -14,12 +14,14 @@ A webapp to create fake Reddit posts that adhere to AO3's CSS guidelines.
 
 ### How to use 
 Option A
-1. Download `ao3-reddit-builder.html`
-2. Open it in any browser — no installation needed
+1. Download `index.html`
+2. Open it in any browser. Make sure you have internet connection
 3. Fill in the fields, check the preview, then copy HTML and CSS into AO3
 
 Option B
 1. Use directly on Github sites
+2. Fill in the fields, check the preview, then copy HTML and CSS into AO3
+
 
 ### Requirements
 - An internet connection on first load (to load fonts and text field components)
