@@ -1,0 +1,1304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AO3 Reddit Workskin Builder</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet" />
+<script type="importmap">
+  { "imports": { "@material/web/": "https://esm.run/@material/web/" } }
+</script>
+<script type="module">
+  import '@material/web/textfield/outlined-text-field.js';
+</script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /* ── M3/Orange design tokens ── */
+  :root {
+    --primary:      #8F4C34;
+    --btn-bg:       #FDD5BF;
+    --panel-bg:     #FFAE7F;
+    --header-bg:    #ffffff;
+    --card-bg:      #ffffff;
+    --comment-bg:   #f5f5f5;
+    --field-bg:     #FFF8F5;
+    --menu-bg:      #FCEAE2;
+    --outline:      #79747E;
+    --switch-on:    #8D4F28;
+    --text:         #000000;
+    --text-muted:   #49454F;
+    --card-radius:  28px;
+    --shadow-card:  0 2px 6px rgba(0,0,0,0.15), 0 1px 2px rgba(0,0,0,0.30);
+    --shadow-hdr:   0 4px 2px rgba(0,0,0,0.25);
+    --sans:         "Roboto", system-ui, sans-serif;
+    --depth-0:      #34C759;
+    --depth-1:      #0088FF;
+    --depth-2:      #FF8D28;
+
+    /* M3 web component theme tokens */
+    --md-sys-color-primary:                        #8F4C34;
+    --md-sys-color-on-primary:                     #ffffff;
+    --md-sys-color-surface-container-highest:      #FFF8F5;
+    --md-outlined-text-field-focus-outline-color:  #8F4C34;
+    --md-outlined-text-field-focus-label-text-color: #8F4C34;
+    --md-outlined-text-field-container-color:      #FFF8F5;
+  }
+
+  html, body { height: 100%; background: var(--panel-bg); color: var(--text); font-family: var(--sans); font-size: 14px; line-height: 1.5; }
+
+  /* ── Layout ── */
+  .app {
+    display: grid;
+    grid-template-rows: 96px 1fr;
+    grid-template-columns: 450px 1fr;
+    grid-template-areas: "header header" "panel preview";
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ── Header ── */
+  .header {
+    grid-area: header;
+    background: var(--header-bg);
+    box-shadow: var(--shadow-hdr);
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: relative;
+    z-index: 10;
+  }
+  .header__title { font-family: var(--sans); font-size: 32px; font-weight: 500; color: var(--text); }
+  .header__actions { display: flex; align-items: center; gap: 0; }
+
+  /* ── Left panel ── */
+  .panel {
+    grid-area: panel;
+    background: var(--panel-bg);
+    overflow-y: scroll;
+    scrollbar-width: thin;
+    scrollbar-color: #8F4C34 #FFAE7F;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+  }
+  .panel::-webkit-scrollbar { width: 8px; background: #FFAE7F; }
+  .panel::-webkit-scrollbar-track { background: #FFAE7F; }
+  .panel::-webkit-scrollbar-thumb { background: #8F4C34; border-radius: 4px; }
+  .panel::-webkit-scrollbar-thumb:hover { background: #6e3928; }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--card-bg);
+    border-radius: var(--card-radius);
+    box-shadow: var(--shadow-card);
+    padding: 16px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .card__title {
+    font-family: var(--sans); font-size: 24px; font-weight: 400; color: var(--text);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .card__title-arrow { font-size: 16px; color: var(--text-muted); cursor: pointer; transition: transform 0.2s; border: none; background: none; padding: 0; }
+  .card__title-arrow.open { transform: rotate(180deg); }
+  .card__body { display: flex; flex-direction: column; gap: 16px; }
+  .card__body.hidden { display: none; }
+  .card__subheading { font-family: var(--sans); font-size: 16px; font-weight: 500; color: var(--text); }
+  .card__divider { border: none; border-top: 1px solid #CAC4D0; margin: 0; }
+  .card__hint { font-size: 12px; color: var(--text-muted); font-family: var(--sans); line-height: 1.4; }
+
+  /* ── M3 component sizing overrides ── */
+  md-outlined-text-field { width: 100%; }
+
+  /* ── Native textarea styled to match M3 outlined text field ── */
+  .field__textarea {
+    font-family: var(--sans);
+    font-size: 16px;
+    color: var(--text);
+    background: var(--field-bg);
+    border: 1px solid var(--outline);
+    border-radius: 4px;
+    padding: 16px 12px;
+    width: 100%;
+    min-height: 100px;
+    resize: vertical;
+    outline: none;
+    line-height: 1.5;
+    box-sizing: border-box;
+    transition: border-color 0.15s;
+  }
+  .field__textarea:focus { border: 2px solid var(--primary); }
+  .field__textarea-wrap { position: relative; width: 100%; }
+  .field__textarea-label {
+    display: block; font-family: var(--sans); font-size: 12px;
+    color: var(--text-muted); margin-bottom: 4px;
+  }
+
+  /* ── field-row for two-column grids ── */
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  /* ── Native select styled to match M3 outlined fields ── */
+  .field__select-wrap { display: flex; flex-direction: column; gap: 4px; }
+  .field__select-label { font-family: var(--sans); font-size: 12px; color: var(--text-muted); }
+  .field__select {
+    font-family: var(--sans); font-size: 16px; color: var(--text);
+    background: var(--menu-bg); border: 1px solid var(--outline);
+    border-radius: 4px; padding: 12px; width: 100%; cursor: pointer; outline: none;
+    appearance: none; -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2349454F' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 12px center; padding-right: 36px;
+  }
+  .field__select:focus { border: 2px solid var(--primary); }
+
+  /* ── switch row ── */
+  .switch-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .switch-row__label { font-family: var(--sans); font-size: 16px; font-weight: 500; color: var(--text); }
+  .switch-row__cue { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+  /* ── Native toggle switch ── */
+  .native-switch { position: relative; display: inline-block; width: 52px; height: 32px; flex-shrink: 0; cursor: pointer; }
+  .native-switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+  .native-switch__track { position: absolute; inset: 0; border-radius: 16px; background: #79747E; border: 2px solid #79747E; transition: background 0.2s, border-color 0.2s; }
+  .native-switch input:checked + .native-switch__track { background: #8D4F28; border-color: #8D4F28; }
+  .native-switch__track::after { content: ''; position: absolute; top: 4px; left: 4px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform 0.2s, width 0.2s, height 0.2s, top 0.2s; }
+  .native-switch input:checked + .native-switch__track::after { transform: translateX(20px); width: 20px; height: 20px; top: 2px; left: 2px; }
+
+  /* ── Add comment button full width ── */
+  .btn-add-comment-wrap { width: 100%; }
+  .comments-area { display: flex; flex-direction: column; gap: 10px; }
+  .comment-card {
+    background: var(--comment-bg);
+    border-radius: 20px;
+    overflow: hidden;
+  }
+  .comment-card__head {
+    display: flex; align-items: center; padding: 12px 16px; gap: 8px;
+    cursor: pointer; user-select: none; transition: background 0.15s;
+  }
+  .comment-card__head:hover { background: rgba(0,0,0,0.04); }
+  .comment-card.open .comment-card__head { border-bottom: 1px solid #CAC4D0; }
+  .comment-card__depth {
+    font-family: var(--sans); font-size: 11px; font-weight: 500;
+    border-radius: 20px; padding: 2px 10px; flex-shrink: 0; color: #ffffff;
+  }
+  .depth-0 { background: var(--depth-0); color: #000; }
+  .depth-1 { background: var(--depth-1); }
+  .depth-2 { background: var(--depth-2); }
+  .comment-card__label { flex: 1; font-size: 13px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .comment-card__controls { display: flex; gap: 4px; flex-shrink: 0; }
+  .card-btn {
+    background: none; border: none; cursor: pointer; padding: 4px 6px;
+    border-radius: 4px; font-size: 14px; color: var(--text-muted); transition: color 0.15s, background 0.15s;
+  }
+  .card-btn:hover { color: var(--primary); background: var(--btn-bg); }
+  .comment-card__body { display: none; padding: 16px; flex-direction: column; gap: 12px; }
+  .comment-card.open .comment-card__body { display: flex; }
+
+  /* ── Right: preview ── */
+  .preview-area { grid-area: preview; overflow: hidden; background: #e8e8e8; display: flex; flex-direction: column; }
+  .preview-scroll { overflow-y: auto; flex: 1; padding: 32px; display: flex; justify-content: center; align-items: flex-start; }
+  .preview-frame { background: #ffffff; box-shadow: 0 4px 4px rgba(0,0,0,0.25); border-radius: 28px; overflow: hidden; width: 100%; max-width: 680px; padding: 24px; }
+
+  /* ── Action buttons ── */
+  .btn-action {
+    font-family: var(--sans); font-size: 14px; font-weight: 500;
+    background: var(--btn-bg); color: var(--text); border: none;
+    border-radius: 20px; padding: 10px 20px; cursor: pointer;
+    transition: background 0.15s; width: 100%; text-align: center;
+  }
+  .btn-action:hover { background: #f5c4a8; }
+  .btn-action.copied { background: #b8dfc8; }
+  .btn-action--inline { width: auto; }
+
+  /* ── Empty state ── */
+  .empty-state { padding: 56px 24px; text-align: center; color: var(--text-muted); }
+  .empty-state__icon { font-size: 28px; margin-bottom: 10px; }
+  .empty-state__text { font-size: 13px; font-family: var(--sans); }
+
+  /* ── Autosave status ── */
+  .autosave-status {
+    font-family: var(--sans); font-size: 11px; color: var(--text-muted);
+    opacity: 0; transition: opacity 0.3s; margin-right: 12px;
+  }
+  .autosave-status.visible { opacity: 1; }
+
+  /* ── Reddit preview styles (mirrors AO3 output exactly — DO NOT TOUCH) ── */
+  .reddit-preview {
+    background-color: #f8fafe;
+    border-radius: 8px;
+    margin-top: 0; margin-bottom: 0; margin-left: auto; margin-right: auto;
+    font-family: system-ui, -apple-system, "Segoe UI", "Helvetica Neue", sans-serif;
+    max-width: 600px; color: #333d42;
+    padding-top: 20px; padding-right: 20px; padding-bottom: 8px; padding-left: 20px;
+    text-align: left;
+  }
+  .reddit-preview p { margin-top: 0; margin-bottom: 0; margin-left: 0; margin-right: 0; }
+  .rp-info { font-size: 12px; color: #1f6c9c; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+  .rp-info-box { display: flex; font-size: 12px; overflow: hidden; }
+  .rp-info-box-inner { overflow: hidden; }
+  .rp-subreddit { color: #0c3954; font-weight: 700; }
+  .rp-posttime { color: #1f6c9c; }
+  .rp-op { font-size: 12px; color: #363636; line-height: 16px; display: block; }
+  .rp-title { font-size: 24px; line-height: 28px; color: #021625; font-weight: 600; margin-bottom: 16px; margin-top: 8px; text-align: left; }
+  .rp-desc { font-size: 14px; color: rgb(12,57,84); padding-bottom: 10px; text-align: left; }
+  .rp-replies { margin-top: 20px; }
+  .rp-reply { margin-top: 10px; margin-bottom: 10px; margin-left: 0; margin-right: 0; }
+  .rp-blockquote { margin-left: 40px; }
+  .rp-username { color: #021625; font-weight: 700; }
+  .rp-image { margin-bottom: 36px; }
+  .rp-reply-body { padding-top: 0; padding-bottom: 5px; padding-left: 40px; padding-right: 0; font-size: 14px; line-height: 20px; text-align: left; }
+  .rp-reply-body p { margin-top: 0; margin-bottom: 0; margin-left: 0; margin-right: 0; }
+  .rp-reply-body img { width: 100%; display: block; border-radius: 8px; margin-top: 8px; }
+  .rp-flair { color: #000; padding-top: 1px; padding-bottom: 1px; padding-left: 6px; padding-right: 6px; border-radius: 20px; font-size: 12px; display: inline-block; margin-bottom: 8px; }
+  .rp-team-flair { background-color: #cbe2fc; color: #000; padding-top: 1px; padding-bottom: 1px; padding-left: 7px; padding-right: 7px; border-radius: 20px; font-size: 12px; }
+  .reddit-avatar { width: 3em; height: 3em; border-radius: 50%; flex-shrink: 0; }
+  .rp-avatar-placeholder { width: 32px; height: 32px; border-radius: 50%; background: #c8d8e8; flex-shrink: 0; }
+
+  /* action bar pills */
+  .rp-actions { margin-top: 12px; margin-bottom: 8px; text-align: left; }
+  .rp-pill {
+    display: inline-flex; align-items: center; background: #E4E8EB; border-radius: 20px;
+    padding-top: 6px; padding-bottom: 6px; padding-left: 12px; padding-right: 12px;
+    font-size: 14px; font-weight: 600; color: #141617; margin-right: 8px;
+    white-space: nowrap; line-height: 1; gap: 5px; vertical-align: middle;
+  }
+  .rp-pill img { width: 16px; height: 16px; display: block; flex-shrink: 0; }
+  .rp-pill-count { display: block; }
+  .rp-image-frame { border: 1px solid #e4e4e4; border-radius: 12px; margin-bottom: 36px; overflow: hidden; }
+  .rp-image-frame img { width: 100%; display: block; border-radius: 0; }
+  .rp-source-bar { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; }
+  .rp-source-name { font-size: 12px; color: #1f6c9c; }
+  .rp-open-pill { border: 1px solid #000; border-radius: 20px; padding: 3px 12px; font-size: 12px; font-weight: 700; color: #000; }
+
+  /* fauxmoi theme */
+  .reddit-preview.reddit-preview--fauxmoi { background-color: #FEF9FA; }
+  .reddit-preview.reddit-preview--fauxmoi .rp-subreddit  { color: #700129; }
+  .reddit-preview.reddit-preview--fauxmoi .rp-posttime   { color: #CD0A54; }
+  .reddit-preview.reddit-preview--fauxmoi .rp-title      { color: #33000D; }
+  .reddit-preview.reddit-preview--fauxmoi .rp-username   { color: #33000D; }
+  .reddit-preview.reddit-preview--fauxmoi .rp-pill       { background-color: #FEE1E5; color: #33000D; }
+  .reddit-preview.reddit-preview--fauxmoi .rp-source-name { color: #CD0A54; }
+
+  /* r/toronto theme */
+  .reddit-preview.reddit-preview--toronto { background-color: #F9FAFE; }
+  .reddit-preview.reddit-preview--toronto .rp-posttime   { color: #2A62CF; }
+  .reddit-preview.reddit-preview--toronto .rp-pill       { background-color: #E2E7FC; color: #123371; }
+  .reddit-preview.reddit-preview--toronto .rp-source-name { color: #2A62CF; }
+
+
+
+
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Header -->
+  <header class="header">
+    <span class="header__title">Reddit Builder for AO3</span>
+    <div class="header__actions">
+      <span class="autosave-status" id="autosaveStatus">Saved</span>
+      <div style="display:flex;gap:8px;">
+        <button class="btn-action btn-action--inline" onclick="saveToFile()">Save to local file</button>
+        <button class="btn-action btn-action--inline" onclick="document.getElementById('loadFileInput').click()">Load from local file</button>
+      </div>
+      <input type="file" id="loadFileInput" accept=".json" style="display:none" onchange="loadFromFile(this)" />
+    </div>
+  </header>
+
+  <!-- Left panel -->
+  <div class="panel" id="panel">
+
+    <!-- CARD 1: Subreddit builder -->
+    <div class="card">
+      <div class="card__title">Subreddit builder</div>
+      <div class="card__body">
+        <div class="field__select-wrap">
+          <label class="field__select-label">Preset theme</label>
+          <select class="field__select" id="f-theme" onchange="applyPreset(this.value)">
+            <option value="default">Default</option>
+            <option value="toronto">r/Toronto</option>
+          </select>
+        </div>
+        <md-outlined-text-field id="f-subreddit" label="Subreddit name" value="r/hockey" oninput="renderPreview()"></md-outlined-text-field>
+        <md-outlined-text-field id="f-subicon" label="Subreddit icon URL (.jpg or .png)" oninput="renderPreview()"></md-outlined-text-field>
+      </div>
+    </div>
+
+    <!-- CARD 2: Post builder -->
+    <div class="card">
+      <div class="card__title">
+        Post builder
+        <button class="card__title-arrow open" id="arrow-post" onclick="toggleCard('post')">▼</button>
+      </div>
+      <div class="card__body" id="body-post">
+        <!-- Image post switch -->
+        <div>
+          <div class="switch-row">
+            <span class="switch-row__label">Image post?</span>
+            <label class="native-switch">
+              <input type="checkbox" id="btn-type-switch" onchange="setPostType(this.checked ? 'image' : 'text')" />
+              <span class="native-switch__track"></span>
+            </label>
+          </div>
+          <div class="switch-row__cue">Turn on image post for fake news articles or external links</div>
+        </div>
+
+        <!-- Post header -->
+        <div class="card__subheading">Post header</div>
+        <md-outlined-text-field id="f-title" label="Post title" value="Experiences meeting MLH players?" oninput="renderPreview()"></md-outlined-text-field>
+        <div class="field-row">
+          <md-outlined-text-field id="f-op" label="OP Username" value="zamboniluvr69" oninput="renderPreview()"></md-outlined-text-field>
+          <md-outlined-text-field id="f-posttime" label="Post time" value="10h ago" oninput="renderPreview()"></md-outlined-text-field>
+        </div>
+        <div class="field-row">
+          <md-outlined-text-field id="f-flair" label="Flair text" oninput="renderPreview()"></md-outlined-text-field>
+          <md-outlined-text-field id="f-flaircolor" label="Flair colour (Hex)" value="#FFB000" oninput="renderPreview()"></md-outlined-text-field>
+        </div>
+        <div class="card__hint">Leave flair text empty to hide the flair badge</div>
+
+        <!-- Text post body -->
+        <div id="f-body-wrap">
+          <label class="field__textarea-label">Post body</label>
+          <textarea class="field__textarea" id="f-body" oninput="renderPreview()">It's the off-season and mods are asleep (shhh), so share some moments you've had running into MLH players in the wild. Don't lie because that's fucking lame.</textarea>
+        </div>
+
+        <!-- Image post fields -->
+        <div id="f-image-wrap" style="display:none;">
+          <md-outlined-text-field id="f-image" label="Main image URL (.jpg or .png)" oninput="renderPreview()"></md-outlined-text-field>
+        </div>
+        <div id="f-source-wrap" style="display:none;flex-direction:column;gap:12px;">
+          <div class="field__select-wrap">
+            <label class="field__select-label">External link?</label>
+            <select class="field__select" id="f-source-mode" onchange="setSourceMode(this.value)">
+              <option value="no">No (looks like OP uploaded their own image)</option>
+              <option value="yes">Yes (looks like a news article)</option>
+            </select>
+          </div>
+          <div id="f-sourceurl-wrap" style="display:none;">
+            <md-outlined-text-field id="f-sourceurl" label="Name of the source (ex. indiewire.com)" oninput="renderPreview()"></md-outlined-text-field>
+          </div>
+        </div>
+
+        <hr class="card__divider" />
+
+        <!-- Post footer -->
+        <div class="card__subheading">Post footer (grey pills at the bottom)</div>
+        <div class="field-row">
+          <md-outlined-text-field id="f-upvotes" label="Upvote count" value="22" oninput="renderPreview()"></md-outlined-text-field>
+          <md-outlined-text-field id="f-commentcount" label="Comment count" value="14" oninput="renderPreview()"></md-outlined-text-field>
+        </div>
+      </div>
+    </div>
+
+    <!-- CARD 3: Comments -->
+    <div class="card">
+      <div class="card__title">
+        Comments
+        <button class="card__title-arrow open" id="arrow-comments" onclick="toggleCard('comments')">▼</button>
+      </div>
+      <div class="card__body" id="body-comments">
+        <div class="comments-area" id="commentsList"></div>
+        <button class="btn-action" onclick="addComment(null)">+ Add a top-level comment</button>
+      </div>
+    </div>
+
+    <!-- CARD 4: Export to fic -->
+    <div class="card">
+      <div class="card__title">Export to fic</div>
+      <div class="card__body">
+        <button class="btn-action" id="btn-copy-html" onclick="copyHTML(this)">Copy HTML</button>
+        <div class="card__hint">HTML is what you paste into the editor in AO3. Copy it every time you make a new Reddit post and paste it into the AO3 editor.</div>
+        <button class="btn-action" id="btn-copy-css" onclick="copyCSS(this)">Copy Reddit CSS</button>
+        <div class="card__hint">This CSS file is what you paste into your Custom Workskin. You only have to copy paste it once, since the CSS does not change for each new post you add.</div>
+        <button class="btn-action" id="btn-copy-workskin-wrapper" onclick="copyWorkskinWrapper(this)">Copy Workskin Wrapper CSS</button>
+        <div class="card__hint">If you want to centre your Reddit posts and constrain them within a 500px width on bigger screens, copy this CSS as well and add it to your Custom Workskin (above or below the Reddit CSS). Hint: I recommend you do this to make your posts look better!</div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Right: preview -->
+  <div class="preview-area">
+    <div class="preview-scroll">
+      <div class="preview-frame">
+        <div id="livePreview">
+          <div class="empty-state">
+            <div class="empty-state__icon">✦</div>
+            <div class="empty-state__text">Fill in the post fields to begin</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────
+let comments = [];
+let nextId = 1;
+let activeTab = 'html';
+let postType = 'text'; // 'text' | 'image'
+let theme = 'default'; // 'default' | 'fauxmoi' | 'toronto'
+
+// Hardcoded icon URLs
+const ICON_UP      = 'https://images.squidge.org/images/2026/04/27/icon-up.png';
+const ICON_DOWN    = 'https://images.squidge.org/images/2026/04/27/icon-down.png';
+const ICON_COMMENT = 'https://images.squidge.org/images/2026/04/27/icon-comment.png';
+const ICON_AWARD   = 'https://images.squidge.org/images/2026/04/27/icon-awarad.png';
+const ICON_SHARE   = 'https://images.squidge.org/images/2026/04/27/icon-share.png';
+
+function uid() { return nextId++; }
+
+function setPostType(type) {
+  postType = type;
+  document.getElementById('f-body-wrap').style.display  = type === 'text'  ? '' : 'none';
+  document.getElementById('f-image-wrap').style.display = type === 'image' ? '' : 'none';
+  const sw = document.getElementById('f-source-wrap');
+  sw.style.display = type === 'image' ? 'flex' : 'none';
+  // sync switch state
+  const switchEl = document.getElementById('btn-type-switch');
+  if (switchEl) switchEl.checked = (type === 'image');
+  renderPreview();
+}
+
+function setSourceMode(val) {
+  document.getElementById('f-sourceurl-wrap').style.display = val === 'yes' ? '' : 'none';
+  renderPreview();
+}
+
+function applyPreset(val) {
+  if (val === 'toronto') {
+    theme = 'toronto';
+    document.getElementById('f-subreddit').value = 'r/Toronto';
+    document.getElementById('f-subicon').value = 'https://styles.redditmedia.com/t5_2qi63/styles/communityIcon_usbwy7w5ays01.png';
+  } else {
+    theme = 'default';
+    document.getElementById('f-subreddit').value = 'r/hockey';
+    document.getElementById('f-subicon').value = '';
+  }
+  renderPreview();
+}
+
+function toggleCard(name) {
+  const body  = document.getElementById('body-' + name);
+  const arrow = document.getElementById('arrow-' + name);
+  body.classList.toggle('hidden');
+  arrow.classList.toggle('open');
+}
+
+// ── Section toggle ─────────────────────────────────────────────────────────
+function toggleSection(name) {
+  const body  = document.getElementById('body-' + name);
+  const arrow = document.getElementById('arrow-' + name);
+  body.classList.toggle('open');
+  arrow.classList.toggle('open');
+}
+
+// ── Comment management ────────────────────────────────────────────────────
+function addComment(parentId) {
+  const depth = parentId === null ? 0 : (comments.find(c => c.id === parentId)?.depth ?? 0) + 1;
+  if (depth > 2) return; // max depth 2 = 3 levels (0,1,2)
+  const c = {
+    id: uid(),
+    parentId: parentId,
+    depth: depth,
+    user: '',
+    avatar: '',
+    flair: '',
+    time: depth === 0 ? '5h ago' : '3h ago',
+    body: '',
+    image: '',
+    open: true
+  };
+  // insert after last sibling if parent exists
+  if (parentId !== null) {
+    // find last descendant of parent
+    const lastIdx = findLastDescendantIdx(parentId);
+    comments.splice(lastIdx + 1, 0, c);
+  } else {
+    comments.push(c);
+  }
+  renderPanel();
+  renderPreview();
+}
+
+function findLastDescendantIdx(parentId) {
+  // returns index of last node that is a descendant of parentId
+  let result = comments.findIndex(c => c.id === parentId);
+  for (let i = result + 1; i < comments.length; i++) {
+    if (isDescendant(comments[i].id, parentId)) result = i;
+    else break;
+  }
+  return result;
+}
+
+function isDescendant(id, ancestorId) {
+  let c = comments.find(c => c.id === id);
+  while (c && c.parentId !== null) {
+    if (c.parentId === ancestorId) return true;
+    c = comments.find(x => x.id === c.parentId);
+  }
+  return false;
+}
+
+function removeComment(id) {
+  // remove comment and all its descendants
+  const toRemove = new Set();
+  toRemove.add(id);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    comments.forEach(c => {
+      if (c.parentId !== null && toRemove.has(c.parentId) && !toRemove.has(c.id)) {
+        toRemove.add(c.id); changed = true;
+      }
+    });
+  }
+  comments = comments.filter(c => !toRemove.has(c.id));
+  renderPanel();
+  renderPreview();
+}
+
+function moveComment(id, dir) {
+  // only move among siblings
+  const c = comments.find(c => c.id === id);
+  if (!c) return;
+  const siblings = comments.filter(x => x.parentId === c.parentId);
+  const si = siblings.findIndex(s => s.id === id);
+  const tj = si + dir;
+  if (tj < 0 || tj >= siblings.length) return;
+  const target = siblings[tj];
+  // swap entire subtrees in comments array
+  // extract subtree rooted at id and subtree rooted at target
+  const subtreeOf = (rootId) => {
+    const ids = [rootId];
+    let i = 0;
+    while (i < ids.length) {
+      comments.forEach(x => { if (x.parentId === ids[i]) ids.push(x.id); });
+      i++;
+    }
+    return ids;
+  };
+  const idsA = subtreeOf(id);
+  const idsB = subtreeOf(target.id);
+  const nodesA = comments.filter(x => idsA.includes(x.id));
+  const nodesB = comments.filter(x => idsB.includes(x.id));
+  const rest   = comments.filter(x => !idsA.includes(x.id) && !idsB.includes(x.id));
+  // find insertion point relative to rest
+  const refNode = dir === -1 ? target : comments[comments.indexOf(nodesB[nodesB.length-1]) + 1];
+  if (dir === -1) {
+    // put A before B
+    const insertAt = comments.indexOf(nodesB[0]);
+    comments = [...comments.slice(0, insertAt).filter(x => !idsA.includes(x.id)),
+      ...nodesA, ...nodesB,
+      ...comments.slice(insertAt).filter(x => !idsA.includes(x.id) && !idsB.includes(x.id))];
+  } else {
+    // put A after B
+    const insertAt = comments.indexOf(nodesB[nodesB.length - 1]) + 1;
+    const before = comments.slice(0, comments.indexOf(nodesA[0])).filter(x => !idsB.includes(x.id));
+    const mid    = comments.slice(comments.indexOf(nodesA[0]), insertAt).filter(x => !idsA.includes(x.id));
+    const after  = comments.slice(insertAt).filter(x => !idsA.includes(x.id));
+    comments = [...before, ...mid, ...nodesA, ...after];
+  }
+  renderPanel();
+  renderPreview();
+}
+
+function toggleComment(id) {
+  const c = comments.find(c => c.id === id);
+  if (c) c.open = !c.open;
+  renderPanel();
+  scheduleSave();
+}
+
+function updateComment(id, field, value) {
+  const c = comments.find(c => c.id === id);
+  if (c) c[field] = value;
+  renderPreview();
+  updateOutputSnippet();
+}
+
+// ── Panel rendering ───────────────────────────────────────────────────────
+function renderPanel() {
+  const list = document.getElementById('commentsList');
+  if (comments.length === 0) {
+    list.innerHTML = '<p style="font-size:12px;color:var(--ink-3);font-family:var(--mono);padding:0 20px 4px;">No comments yet.</p>';
+    return;
+  }
+  // render in order, indented by depth
+  const siblings = (parentId) => comments.filter(c => c.parentId === parentId);
+  let html = '';
+  const render = (parentId) => {
+    siblings(parentId).forEach((c, i) => {
+      const sibs = siblings(parentId);
+      const depthLabel = ['Top-level comment', 'Reply', 'Reply to reply'][c.depth] || 'Reply';
+      const canAddChild = c.depth < 2;
+      const label = c.user ? `${c.user} — ${c.body ? c.body.slice(0,30)+'…' : '(no body)'}` : '(unnamed)';
+      html += `<div style="padding-left:${c.depth * 16}px;">
+        <div class="comment-card ${c.open ? 'open' : ''}" id="cc-${c.id}">
+          <div class="comment-card__head" onclick="toggleComment(${c.id})">
+            <span class="comment-card__depth depth-${c.depth}">${depthLabel}</span>
+            <span class="comment-card__label">${esc(label)}</span>
+            <div class="comment-card__controls" onclick="event.stopPropagation()">
+              ${i > 0 ? `<button class="card-btn" onclick="moveComment(${c.id},-1)" title="Move up">↑</button>` : ''}
+              ${i < sibs.length-1 ? `<button class="card-btn" onclick="moveComment(${c.id},1)" title="Move down">↓</button>` : ''}
+              <button class="card-btn" onclick="removeComment(${c.id})" title="Remove">✕</button>
+            </div>
+          </div>
+          <div class="comment-card__body">
+            <md-outlined-text-field label="Username" placeholder="username" value="${esc(c.user)}" oninput="updateComment(${c.id},'user',this.value)"></md-outlined-text-field>
+            <md-outlined-text-field label="Avatar URL (.jpg or .png)" placeholder="https://…/avatar.png" value="${esc(c.avatar)}" oninput="updateComment(${c.id},'avatar',this.value)"></md-outlined-text-field>
+            <div class="field-row">
+              <md-outlined-text-field label="Team / user flair" placeholder="BOS - NHL" value="${esc(c.flair)}" oninput="updateComment(${c.id},'flair',this.value)"></md-outlined-text-field>
+              <md-outlined-text-field label="Post time" value="${esc(c.time)}" oninput="updateComment(${c.id},'time',this.value)"></md-outlined-text-field>
+            </div>
+            <div>
+              <label class="field__textarea-label">Comment body</label>
+              <textarea class="field__textarea" placeholder="Comment text…" oninput="updateComment(${c.id},'body',this.value)">${esc(c.body)}</textarea>
+            </div>
+            <md-outlined-text-field label="Image URL (optional)" placeholder="https://…/image.jpg" value="${esc(c.image || '')}" oninput="updateComment(${c.id},'image',this.value)"></md-outlined-text-field>
+            ${canAddChild ? `<button class="btn-action" onclick="addComment(${c.id})">+ Add reply to this comment</button>` : '<p class="card__hint">Max nesting depth reached (3 levels).</p>'}
+          </div>
+        </div>
+      </div>`;
+      render(c.id);
+    });
+  };
+  render(null);
+  list.innerHTML = html;
+}
+
+// ── Preview rendering ─────────────────────────────────────────────────────
+function v(id) { return document.getElementById(id)?.value?.trim() || ''; }
+
+function renderPreview() {
+  const sub         = v('f-subreddit') || 'r/subreddit';
+  const subIcon     = v('f-subicon');
+  const title       = v('f-title')    || 'Post title';
+  const op          = v('f-op')       || 'username';
+  const postTime    = v('f-posttime') || '1h ago';
+  const body        = v('f-body');
+  const imageUrl    = v('f-image');
+  const flair       = v('f-flair');
+  const flairCol    = v('f-flaircolor') || '#FFB000';
+  const upvotes     = v('f-upvotes') || '0';
+  const commentCnt  = v('f-commentcount') || '0';
+
+  const avatarMap = buildAvatarMap();
+
+  const previewTheme = theme === 'fauxmoi' ? ' reddit-preview--fauxmoi' : theme === 'toronto' ? ' reddit-preview--toronto' : '';
+  let h = `<div class="reddit-preview${previewTheme}">`;
+
+  // subreddit info row
+  h += '<div class="rp-info">';
+  if (subIcon) {
+    h += `<img src="${esc(subIcon)}" class="reddit-avatar" alt="" />`;
+  } else {
+    h += '<div class="rp-avatar-placeholder"></div>';
+  }
+  h += '<div class="rp-info-box"><div class="rp-info-box-inner">';
+  h += `<p><span class="rp-subreddit"><b>${esc(sub)}</b></span> &bull; <span class="rp-posttime">${esc(postTime)}</span></p>`;
+  h += `<span class="rp-op">${esc(op)}</span>`;
+  h += '</div></div>';
+  h += '</div>';
+
+  if (flair) h += `<span class="rp-flair" style="background-color:${esc(flairCol)}">${esc(flair)}</span>`;
+
+  h += `<div class="rp-title">${esc(title)}</div>`;
+
+  if (postType === 'text' && body) {
+    h += `<div class="rp-desc"><p>${escNl(body)}</p></div>`;
+  } else if (postType === 'image') {
+    const srcMode = (document.getElementById('f-source-mode')?.value || 'no');
+    const srcUrl  = esc(document.getElementById('f-sourceurl')?.value?.trim() || '');
+    if (srcMode === 'yes') {
+      const imgHtml = imageUrl
+        ? `<img src="${esc(imageUrl)}" alt="" style="width:100%;display:block;border-radius:0;" />`
+        : `<div style="background:#dde4ea;height:180px;display:flex;align-items:center;justify-content:center;color:#888;font-size:13px;">Image URL</div>`;
+      h += `<div class="rp-image-frame">${imgHtml}<div class="rp-source-bar"><span class="rp-source-name">${srcUrl}</span><span class="rp-open-pill">Open</span></div></div>`;
+    } else if (imageUrl) {
+      h += `<div class="rp-image"><img src="${esc(imageUrl)}" alt="" style="width:100%;display:block;border-radius:12px;" /></div>`;
+    } else {
+      h += `<div class="rp-image" style="background:#dde4ea;border-radius:12px;height:180px;display:flex;align-items:center;justify-content:center;color:#888;font-size:13px;">Image URL</div>`;
+    }
+  }
+
+  // action bar pills — <p> container so spans render inline on AO3
+  h += '<p class="rp-actions">';
+  h += `<span class="rp-pill"><img src="${ICON_UP}" alt="" class="rp-pill-icon" /> <span class="rp-pill-count">${esc(upvotes)}</span> <img src="${ICON_DOWN}" alt="" class="rp-pill-icon" /></span>`;
+  h += `<span class="rp-pill"><img src="${ICON_COMMENT}" alt="" class="rp-pill-icon" /> <span class="rp-pill-count">${esc(commentCnt)}</span></span>`;
+  h += `<span class="rp-pill"><img src="${ICON_AWARD}" alt="" class="rp-pill-icon" /></span>`;
+  h += `<span class="rp-pill"><img src="${ICON_SHARE}" alt="" class="rp-pill-icon" /> <span class="rp-pill-count">Share</span></span>`;
+  h += '</p>';
+
+  // comments
+  if (comments.length) {
+    h += '<div class="rp-replies">';
+    h += renderCommentsHTML(null, 0, avatarMap);
+    h += '</div>';
+  }
+
+  h += '</div>';
+  document.getElementById('livePreview').innerHTML = h;
+  updateOutputSnippet();
+  scheduleSave();
+}
+
+function renderCommentsHTML(parentId, depth, avatarMap) {
+  let h = '';
+  comments.filter(c => c.parentId === parentId).forEach(c => {
+    const cls = depth > 0 ? 'rp-reply rp-blockquote' : 'rp-reply';
+    h += `<div class="${cls}">`;
+    // info row
+    h += '<div class="rp-info">';
+    const aclass = avatarMap[c.id];
+    if (c.avatar) {
+      h += `<img src="${esc(c.avatar)}" class="reddit-avatar" alt="" />`;
+    } else {
+      h += `<div class="rp-avatar-placeholder"></div>`;
+    }
+    h += '<div class="rp-info-box"><div class="rp-info-box-inner">';
+    h += `<p><span class="rp-username"><b>${esc(c.user || '(username)')}</b></span>`;
+    if (c.flair) h += ` <span class="rp-team-flair">${esc(c.flair)}</span>`;
+    h += ` &bull; <span class="rp-posttime">${esc(c.time)}</span></p>`;
+    h += '</div></div>';
+    h += '</div>';
+    const imgHtml = c.image ? `<img src="${esc(c.image)}" alt="" />` : '';
+    h += `<div class="rp-reply-body"><p>${escNl(c.body)}</p>${imgHtml}</div>`;
+    // children
+    h += renderCommentsHTML(c.id, depth + 1, avatarMap);
+    h += '</div>';
+  });
+  return h;
+}
+
+function buildAvatarMap() {
+  const map = {};
+  let n = 1;
+  comments.forEach(c => { map[c.id] = 'redditor' + n++; });
+  return map;
+}
+
+// ── HTML generation ───────────────────────────────────────────────────────
+function generateHTML() {
+  const sub         = v('f-subreddit') || 'r/subreddit';
+  const subIcon     = v('f-subicon');
+  const title       = v('f-title')    || 'Post title';
+  const op          = v('f-op')       || 'username';
+  const postTime    = v('f-posttime') || '1h ago';
+  const body        = v('f-body');
+  const imageUrl    = v('f-image');
+  const flair       = v('f-flair');
+  const flairCol    = v('f-flaircolor') || '#FFB000';
+  const upvotes     = v('f-upvotes') || '0';
+  const commentCnt  = v('f-commentcount') || '0';
+  const avatarMap   = buildAvatarMap();
+
+  let lines = [];
+  const themeClass = theme === 'fauxmoi' ? ' reddit--fauxmoi' : theme === 'toronto' ? ' reddit--toronto' : '';
+  lines.push(`<div class="reddit${themeClass}">`);
+
+  // subreddit header
+  lines.push(`  <div class="reddit-info">`);
+  if (subIcon) {
+    lines.push(`    <img class="reddit-avatar" src="${xesc(subIcon)}" width="36" height="36" alt="" />`);
+  }
+  lines.push(`    <div class="reddit-info-box">`);
+  lines.push(`      <p><span class="reddit-subreddit"><b>${xesc(sub)}</b></span> &bull; <span class="reddit-post-time">${xesc(postTime)}</span><br>`);
+  lines.push(`      <span class="reddit-op">${xesc(op)}</span></p>`);
+  lines.push(`    </div>`);
+  lines.push(`  </div>`);
+
+  if (flair) lines.push(`  <span class="reddit-flair" style="background-color:${xesc(flairCol)}">${xesc(flair)}</span>`);
+  lines.push(`  <div class="reddit-title"><p>${xesc(title)}</p></div>`);
+
+  if (postType === 'text' && body) {
+    lines.push(`  <div class="reddit-desc"><p>${xescNl(body)}</p></div>`);
+  } else if (postType === 'image' && imageUrl) {
+    const srcMode = v('f-source-mode');
+    const srcUrl  = v('f-sourceurl');
+    if (srcMode === 'yes') {
+      lines.push(`  <div class="reddit-image-frame">`);
+      lines.push(`    <img src="${xesc(imageUrl)}" alt="" />`);
+      lines.push(`    <p class="reddit-source-bar"><span class="reddit-open-pill">Open</span><span class="reddit-source-name">${xesc(srcUrl)}</span></p>`);
+      lines.push(`  </div>`);
+    } else {
+      lines.push(`  <div class="reddit-image"><img src="${xesc(imageUrl)}" alt="" /></div>`);
+    }
+  }
+
+  // action bar — <p> container so spans stay inline on AO3
+  lines.push(`  <p class="reddit-actions">`);
+  lines.push(`    <span class="reddit-pill"><img class="reddit-pill-icon" src="${ICON_UP}" alt="" /> <span class="reddit-pill-count">${xesc(upvotes)}</span> <img class="reddit-pill-icon" src="${ICON_DOWN}" alt="" /></span>`);
+  lines.push(`    <span class="reddit-pill"><img class="reddit-pill-icon" src="${ICON_COMMENT}" alt="" /> <span class="reddit-pill-count">${xesc(commentCnt)}</span></span>`);
+  lines.push(`    <span class="reddit-pill"><img class="reddit-pill-icon" src="${ICON_AWARD}" alt="" /></span>`);
+  lines.push(`    <span class="reddit-pill"><img class="reddit-pill-icon" src="${ICON_SHARE}" alt="" /> <span class="reddit-pill-count">Share</span></span>`);
+  lines.push(`  </p>`);
+
+  if (comments.length) {
+    lines.push(`  <div class="reddit-replies">`);
+    htmlComments(null, 0, lines, avatarMap, '    ');
+    lines.push(`  </div>`);
+  }
+
+  lines.push('</div>');
+  return lines.join('\n');
+}
+
+function htmlComments(parentId, depth, lines, avatarMap, indent) {
+  comments.filter(c => c.parentId === parentId).forEach(c => {
+    const blockClass = depth > 0 ? 'reddit-reply reddit-blockquote' : 'reddit-reply';
+    lines.push(`${indent}<div class="${blockClass}">`);
+    lines.push(`${indent}  <div class="reddit-info">`);
+    if (c.avatar) {
+      lines.push(`${indent}    <img class="reddit-avatar" src="${xesc(c.avatar)}" width="36" height="36" alt="" />`);
+    }
+    lines.push(`${indent}    <div class="reddit-info-box">`);
+    let metaLine = `<span class="reddit-username"><b>${xesc(c.user || '')}</b></span>`;
+    if (c.flair) metaLine += ` <span class="reddit-team-flair">${xesc(c.flair)}</span>`;
+    metaLine += ` &bull; <span class="reddit-post-time">${xesc(c.time)}</span>`;
+    lines.push(`${indent}      <p>${metaLine}</p>`);
+    lines.push(`${indent}    </div>`);
+    lines.push(`${indent}  </div>`);
+    if (c.image) {
+      lines.push(`${indent}  <div class="reddit-reply-body">`);
+      lines.push(`${indent}    <p>${xescNl(c.body)}</p>`);
+      lines.push(`${indent}    <img src="${xesc(c.image)}" alt="" />`);
+      lines.push(`${indent}  </div>`);
+    } else {
+      lines.push(`${indent}  <div class="reddit-reply-body"><p>${xescNl(c.body)}</p></div>`);
+    }
+    htmlComments(c.id, depth + 1, lines, avatarMap, indent + '  ');
+    lines.push(`${indent}</div>`);
+  });
+}
+
+// ── CSS generation ────────────────────────────────────────────────────────
+function generateCSS() {
+  return `#workskin .reddit {
+  background-color: #f8fafe;
+  border-radius: 8px;
+  margin-top: 0;
+  margin-bottom: 0;
+  margin-left: auto;
+  margin-right: auto;
+  font-family: system-ui, -apple-system, "Segoe UI", "Helvetica Neue", sans-serif;
+  max-width: 600px;
+  color: #333d42;
+  padding-top: 20px;
+  padding-right: 20px;
+  padding-bottom: 8px;
+  padding-left: 20px;
+  text-align: left;
+}
+#workskin .reddit p {
+  margin-top: 0;
+  margin-bottom: 0;
+  margin-left: 0;
+  margin-right: 0;
+}
+#workskin .reddit-info {
+  font-size: 12px;
+  color: #1f6c9c;
+  margin-bottom: 4px;
+  overflow: hidden;
+}
+#workskin .reddit-avatar {
+  float: left;
+  width: 2em;
+  height: 2em;
+  border-radius: 50%;
+  display: block;
+  overflow: hidden;
+  margin-right: 8px;
+}
+#workskin .reddit-info-box {
+  overflow: hidden;
+  padding-left: 4px;
+  font-size: 12px;
+  vertical-align: middle;
+}
+#workskin .reddit-info-box p {
+  margin-top: 0;
+  margin-bottom: 0;
+  margin-left: 0;
+  margin-right: 0;
+  line-height: 1.2;
+}
+#workskin .reddit-reply .reddit-info-box p {
+  line-height: 1;
+}
+#workskin .reddit-subreddit {
+  color: #0c3954;
+  font-weight: 700;
+}
+#workskin .reddit-post-time {
+  color: #1f6c9c;
+}
+#workskin .reddit-op {
+  font-size: 12px;
+  color: #363636;
+  line-height: 16px;
+}
+#workskin .reddit-title {
+  font-size: 24px;
+  line-height: 28px;
+  color: #021625;
+  font-weight: 600;
+  margin-bottom: 16px;
+  text-align: left;
+}
+#workskin .reddit-desc {
+  font-size: 14px;
+  color: rgb(12,57,84);
+  padding-bottom: 36px;
+  text-align: left;
+}
+#workskin .reddit-image {
+  margin-bottom: 36px;
+}
+#workskin .reddit-image img {
+  width: 100%;
+  display: block;
+  border-radius: 12px;
+}
+#workskin .reddit-replies {
+  margin-top: 20px;
+}
+#workskin .reddit-reply {
+  margin-top: 10px;
+  margin-bottom: 10px;
+  margin-left: 0;
+  margin-right: 0;
+}
+#workskin .reddit-username {
+  color: #021625;
+}
+#workskin .reddit-reply-body {
+  padding-top: 0;
+  padding-bottom: 5px;
+  padding-left: 40px;
+  padding-right: 0;
+  font-size: 14px;
+  line-height: 20px;
+  text-align: left;
+}
+#workskin .reddit-reply-body p {
+  margin-top: 0;
+  margin-bottom: 0;
+  margin-left: 0;
+  margin-right: 0;
+}
+#workskin .reddit-reply-body img {
+  width: 100%;
+  display: block;
+  border-radius: 8px;
+  margin-top: 8px;
+  margin-bottom: 0;
+  margin-left: 0;
+  margin-right: 0;
+}
+#workskin .reddit-blockquote {
+  margin-left: 40px;
+}
+#workskin .reddit-flair {
+  color: #000;
+  padding-top: 1px;
+  padding-bottom: 1px;
+  padding-left: 6px;
+  padding-right: 6px;
+  border-radius: 20px;
+  font-size: 12px;
+}
+#workskin .reddit-team-flair {
+  background-color: #cbe2fc;
+  color: #000;
+  padding-top: 1px;
+  padding-bottom: 1px;
+  padding-left: 7px;
+  padding-right: 7px;
+  border-radius: 20px;
+  font-size: 12px;
+}
+#workskin .reddit-actions {
+  margin-top: 12px;
+  margin-bottom: 8px;
+  margin-left: 0;
+  margin-right: 0;
+  text-align: left;
+}
+#workskin .reddit-pill {
+  display: inline;
+  background-color: #E4E8EB;
+  border-radius: 20px;
+  padding-top: 7px;
+  padding-bottom: 7px;
+  padding-left: 12px;
+  padding-right: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #141617;
+  margin-right: 8px;
+  white-space: nowrap;
+}
+#workskin .reddit-pill-icon {
+  width: 16px;
+  height: 16px;
+  vertical-align: middle;
+  display: inline;
+}
+#workskin .reddit-pill-count {
+  vertical-align: middle;
+}
+#workskin .reddit-image-frame {
+  border-top: 1px solid #e4e4e4;
+  border-right: 1px solid #e4e4e4;
+  border-bottom: 1px solid #e4e4e4;
+  border-left: 1px solid #e4e4e4;
+  border-radius: 12px;
+  margin-bottom: 36px;
+  overflow: hidden;
+}
+#workskin .reddit-image-frame img {
+  width: 100%;
+  display: block;
+  border-radius: 0;
+}
+#workskin .reddit-source-bar {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 12px;
+  padding-right: 12px;
+  margin-top: 0;
+  margin-bottom: 0;
+  margin-left: 0;
+  margin-right: 0;
+  overflow: hidden;
+  text-align: left;
+}
+#workskin .reddit-source-name {
+  font-size: 12px;
+  color: #1f6c9c;
+  text-align: left;
+}
+#workskin .reddit-open-pill {
+  float: right;
+  border-top: 1px solid #000;
+  border-right: 1px solid #000;
+  border-bottom: 1px solid #000;
+  border-left: 1px solid #000;
+  border-radius: 20px;
+  padding-top: 3px;
+  padding-bottom: 3px;
+  padding-left: 12px;
+  padding-right: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #000;
+}
+#workskin .reddit.reddit--fauxmoi {
+  background-color: #FEF9FA;
+}
+#workskin .reddit.reddit--fauxmoi .reddit-subreddit {
+  color: #700129;
+}
+#workskin .reddit.reddit--fauxmoi .reddit-post-time {
+  color: #CD0A54;
+}
+#workskin .reddit.reddit--fauxmoi .reddit-source-name {
+  color: #CD0A54;
+}
+#workskin .reddit.reddit--fauxmoi .reddit-title {
+  color: #33000D;
+}
+#workskin .reddit.reddit--fauxmoi .reddit-username {
+  color: #33000D;
+}
+#workskin .reddit.reddit--fauxmoi .reddit-pill {
+  background-color: #FEE1E5;
+  color: #33000D;
+}
+#workskin .reddit.reddit--toronto {
+  background-color: #F9FAFE;
+}
+#workskin .reddit.reddit--toronto .reddit-post-time {
+  color: #2A62CF;
+}
+#workskin .reddit.reddit--toronto .reddit-source-name {
+  color: #2A62CF;
+}
+#workskin .reddit.reddit--toronto .reddit-pill {
+  background-color: #E2E7FC;
+  color: #123371;
+}`;
+}
+
+function generateWorkskinWrapper() {
+  return `#workskin body {
+  margin: 0;
+  padding: 20px;
+  background: #f5f5f5;
+  font-family: Georgia, serif;
+}
+
+#workskin {
+  max-width: 500px;
+  background: white;
+  padding: 20px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+#workskin .center {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  width: 90%;
+  max-width: 300px;
+  overflow: hidden;
+}
+
+#workskin .center img {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+}`;
+}
+
+
+
+
+// ── Output bar ────────────────────────────────────────────────────────────
+function copyHTML(btn) {
+  const content = generateHTML();
+  if (!content) return;
+  navigator.clipboard.writeText(content).then(() => {
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy HTML'; btn.classList.remove('copied'); }, 1500);
+  });
+}
+
+function copyCSS(btn) {
+  const content = generateCSS();
+  if (!content) return;
+  navigator.clipboard.writeText(content).then(() => {
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy CSS'; btn.classList.remove('copied'); }, 1500);
+  });
+}
+
+function copyWorkskinWrapper(btn) {
+  const content = generateCSS();
+  if (!content) return;
+  navigator.clipboard.writeText(content).then(() => {
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy Workskin Wrapper'; btn.classList.remove('copied'); }, 1500);
+  });
+}
+
+function updateOutputSnippet() {} // no-op — output bar removed
+
+// ── Escaping ──────────────────────────────────────────────────────────────
+function esc(s) { return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function escNl(s) { return esc(s || '').replace(/\n/g,'<br>'); }
+function xesc(s) { return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function xescNl(s) { return xesc(s || '').replace(/\n/g,'<br>\n'); }
+
+// ── Persistence ───────────────────────────────────────────────────────────
+const STORAGE_KEY = 'ao3-reddit-builder';
+const FIELD_IDS = ['f-subreddit','f-subicon','f-title','f-op','f-posttime',
+                   'f-body','f-image','f-source-mode','f-sourceurl','f-flair','f-flaircolor','f-upvotes','f-commentcount'];
+
+function getState() {
+  const fields = {};
+  FIELD_IDS.forEach(id => { fields[id] = document.getElementById(id)?.value ?? ''; });
+  return { version: 1, postType, theme, nextId, fields, comments };
+}
+
+function restoreState(state) {
+  if (!state || state.version !== 1) return;
+  comments = state.comments || [];
+  nextId   = state.nextId   || 1;
+  FIELD_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el && state.fields?.[id] !== undefined) el.value = state.fields[id];
+  });
+  setPostType(state.postType || 'text');
+  setSourceMode(document.getElementById('f-source-mode')?.value || 'no');
+  theme = state.theme || 'default';
+  // map legacy fauxmoi saves to default in dropdown (fauxmoi not in dropdown)
+  const themeEl = document.getElementById('f-theme');
+  if (themeEl) themeEl.value = (theme === 'toronto') ? 'toronto' : 'default';
+  renderPanel();
+  renderPreview();
+}
+
+let _saveTimer = null;
+function scheduleSave() {
+  clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(getState()));
+      showSavedStatus();
+    } catch (e) {}
+  }, 500);
+}
+
+function showSavedStatus() {
+  const el = document.getElementById('autosaveStatus');
+  if (!el) return;
+  el.textContent = 'Saved';
+  el.classList.add('visible');
+  clearTimeout(el._hideTimer);
+  el._hideTimer = setTimeout(() => el.classList.remove('visible'), 2000);
+}
+
+function saveToFile() {
+  const state = getState();
+  const json  = JSON.stringify(state, null, 2);
+  const blob  = new Blob([json], { type: 'application/json' });
+  const a     = document.createElement('a');
+  a.href      = URL.createObjectURL(blob);
+  const slug  = (v('f-subreddit') || 'post').replace(/[^a-z0-9]/gi, '-');
+  a.download  = `reddit-workskin-${slug}-${Date.now()}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function loadFromFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      restoreState(JSON.parse(ev.target.result));
+    } catch (e) {
+      alert("Could not load file — make sure it's a valid builder save.");
+    }
+  };
+  reader.readAsText(file);
+  input.value = '';
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+(function () {
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (saved) {
+    try { restoreState(JSON.parse(saved)); return; } catch (e) {}
+  }
+  renderPanel();
+  renderPreview();
+})();
+</script>
+</body>
+</html>
