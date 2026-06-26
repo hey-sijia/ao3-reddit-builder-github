@@ -348,7 +348,7 @@
             <option value="toronto">r/Toronto</option>
           </select>
         </div>
-        <md-outlined-text-field id="f-subreddit" label="Subreddit name" value="r/fakesubreddit" oninput="renderPreview()"></md-outlined-text-field>
+        <md-outlined-text-field id="f-subreddit" label="Subreddit name" value="r/hockey" oninput="renderPreview()"></md-outlined-text-field>
         <md-outlined-text-field id="f-subicon" label="Subreddit icon URL (.jpg or .png)" oninput="renderPreview()"></md-outlined-text-field>
       </div>
     </div>
@@ -388,7 +388,16 @@
         <!-- Text post body -->
         <div id="f-body-wrap">
           <label class="field__textarea-label">Post body</label>
-          <textarea class="field__textarea" id="f-body" oninput="renderPreview()">This is your sample post body!</textarea>
+          <div class="rte-wrap" id="rte-post-body">
+            <div class="rte-toolbar">
+              <button class="rte-btn" title="Bold" onclick="wrapPostBody('<b>','</b>')"><b>B</b></button>
+              <button class="rte-btn" title="Bold &amp; Italic" onclick="wrapPostBody('<b><i>','</i></b>')"><b><i>BI</i></b></button>
+              <button class="rte-btn" title="Strikethrough" onclick="wrapPostBody('<s>','</s>')"><s>S</s></button>
+              <button class="rte-btn" title="Insert link" onclick="insertPostLink()">🔗</button>
+            </div>
+            <textarea class="field__textarea" id="f-body" oninput="renderPreview(); validatePostBody()">This is your sample post body!</textarea>
+          </div>
+          <p class="rte-error">Oops, you might have an HTML error in the post body.</p>
         </div>
 
         <!-- Image post fields -->
@@ -695,6 +704,51 @@ function validateBody(id) {
   wrap.classList.toggle('has-error', hasError);
 }
 
+function wrapPostBody(open, close) {
+  const ta = document.getElementById('f-body');
+  if (!ta) return;
+  const start = ta.selectionStart;
+  const end   = ta.selectionEnd;
+  const selected = ta.value.slice(start, end);
+  const tag = open + (selected || '') + close;
+  ta.value = ta.value.slice(0, start) + tag + ta.value.slice(end);
+  const cursor = selected ? start + tag.length : start + open.length;
+  ta.setSelectionRange(cursor, cursor);
+  ta.focus();
+  renderPreview();
+  validatePostBody();
+}
+
+function insertPostLink() {
+  const ta = document.getElementById('f-body');
+  if (!ta) return;
+  const start = ta.selectionStart;
+  const end   = ta.selectionEnd;
+  const selected = ta.value.slice(start, end);
+  let linkText = selected;
+  if (!linkText) {
+    linkText = prompt('Link text:');
+    if (linkText === null) return;
+  }
+  const url = prompt('URL (include https://):');
+  if (url === null) return;
+  const tag = `<a href="${url}">${linkText}</a>`;
+  ta.value = ta.value.slice(0, start) + tag + ta.value.slice(end);
+  ta.focus();
+  renderPreview();
+  validatePostBody();
+}
+
+function validatePostBody() {
+  const wrap = document.getElementById('rte-post-body');
+  const ta   = document.getElementById('f-body');
+  if (!wrap || !ta) return;
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(`<div>${ta.value}</div>`, 'application/xhtml+xml');
+  const hasError = doc.querySelector('parsererror') !== null;
+  wrap.classList.toggle('has-error', hasError);
+}
+
 // ── Panel rendering ───────────────────────────────────────────────────────
 function renderPanel() {
   const list = document.getElementById('commentsList');
@@ -793,7 +847,7 @@ function renderPreview() {
   h += `<div class="rp-title">${esc(title)}</div>`;
 
   if (postType === 'text' && body) {
-    h += `<div class="rp-desc"><p>${escNl(body)}</p></div>`;
+    h += `<div class="rp-desc"><p>${body}</p></div>`;
   } else if (postType === 'image') {
     const srcMode = (document.getElementById('f-source-mode')?.value || 'no');
     const srcUrl  = esc(document.getElementById('f-sourceurl')?.value?.trim() || '');
@@ -899,7 +953,7 @@ function generateHTML() {
   lines.push(`  <div class="reddit-title"><p>${xesc(title)}</p></div>`);
 
   if (postType === 'text' && body) {
-    lines.push(`  <div class="reddit-desc"><p>${xescNl(body)}</p></div>`);
+    lines.push(`  <div class="reddit-desc"><p>${body}</p></div>`);
   } else if (postType === 'image' && imageUrl) {
     const srcMode = v('f-source-mode');
     const srcUrl  = v('f-sourceurl');
