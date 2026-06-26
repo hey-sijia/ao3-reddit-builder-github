@@ -69,7 +69,7 @@
     position: relative;
     z-index: 10;
   }
-  .header__title { font-family: var(--sans); font-size: 32px; font-weight: 500; color: var(--text); }
+  .header__title { font-family: var(--sans); font-size: 32px; font-weight: 500; color: var(--primary); }
   .header__actions { display: flex; align-items: center; gap: 0; }
 
   /* ── Left panel ── */
@@ -137,6 +137,30 @@
     display: block; font-family: var(--sans); font-size: 12px;
     color: var(--text-muted); margin-bottom: 4px;
   }
+
+  /* ── Rich text toolbar ── */
+  .rte-wrap { display: flex; flex-direction: column; }
+  .rte-toolbar {
+    background: #f0e8e4; border: 1px solid var(--outline);
+    border-bottom: none; border-radius: 4px 4px 0 0;
+    padding: 4px 8px; display: flex; gap: 4px;
+  }
+  .rte-btn {
+    background: none; border: none; cursor: pointer;
+    padding: 4px 8px; border-radius: 4px; font-size: 13px;
+    color: var(--text-muted); transition: background 0.15s; line-height: 1;
+  }
+  .rte-btn:hover { background: var(--btn-bg); color: var(--text); }
+  .rte-wrap .field__textarea { border-radius: 0 0 4px 4px; border-top: none; }
+
+  /* ── Error state ── */
+  .rte-wrap.has-error .rte-toolbar { border-color: #B3261E; }
+  .rte-wrap.has-error .field__textarea { border-color: #B3261E; border-top: none; }
+  .rte-error {
+    display: none; font-size: 12px; color: #B3261E;
+    margin-top: 4px; font-family: var(--sans);
+  }
+  .rte-wrap.has-error ~ .rte-error { display: block; }
 
   /* ── field-row for two-column grids ── */
   .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -625,6 +649,52 @@ function updateComment(id, field, value) {
   updateOutputSnippet();
 }
 
+function wrapSelection(id, open, close) {
+  const ta = document.querySelector(`#cc-${id} .field__textarea`);
+  if (!ta) return;
+  const start = ta.selectionStart;
+  const end   = ta.selectionEnd;
+  const selected = ta.value.slice(start, end);
+  const tag = open + (selected || '') + close;
+  ta.value = ta.value.slice(0, start) + tag + ta.value.slice(end);
+  // restore cursor inside the tag if nothing was selected
+  const cursor = selected ? start + tag.length : start + open.length;
+  ta.setSelectionRange(cursor, cursor);
+  ta.focus();
+  updateComment(id, 'body', ta.value);
+  validateBody(id);
+}
+
+function insertLink(id) {
+  const ta = document.querySelector(`#cc-${id} .field__textarea`);
+  if (!ta) return;
+  const start = ta.selectionStart;
+  const end   = ta.selectionEnd;
+  const selected = ta.value.slice(start, end);
+  let linkText = selected;
+  if (!linkText) {
+    linkText = prompt('Link text:');
+    if (linkText === null) return;
+  }
+  const url = prompt('URL (include https://):');
+  if (url === null) return;
+  const tag = `<a href="${url}">${linkText}</a>`;
+  ta.value = ta.value.slice(0, start) + tag + ta.value.slice(end);
+  ta.focus();
+  updateComment(id, 'body', ta.value);
+  validateBody(id);
+}
+
+function validateBody(id) {
+  const wrap = document.getElementById(`rte-${id}`);
+  const ta   = wrap?.querySelector('.field__textarea');
+  if (!wrap || !ta) return;
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(`<div>${ta.value}</div>`, 'application/xhtml+xml');
+  const hasError = doc.querySelector('parsererror') !== null;
+  wrap.classList.toggle('has-error', hasError);
+}
+
 // ── Panel rendering ───────────────────────────────────────────────────────
 function renderPanel() {
   const list = document.getElementById('commentsList');
@@ -661,7 +731,16 @@ function renderPanel() {
             </div>
             <div>
               <label class="field__textarea-label">Comment body</label>
-              <textarea class="field__textarea" placeholder="Comment text…" oninput="updateComment(${c.id},'body',this.value)">${esc(c.body)}</textarea>
+              <div class="rte-wrap" id="rte-${c.id}">
+                <div class="rte-toolbar">
+                  <button class="rte-btn" title="Bold" onclick="wrapSelection(${c.id},'<b>','</b>')"><b>B</b></button>
+                  <button class="rte-btn" title="Bold &amp; Italic" onclick="wrapSelection(${c.id},'<b><i>','</i></b>')"><b><i>BI</i></b></button>
+                  <button class="rte-btn" title="Strikethrough" onclick="wrapSelection(${c.id},'<s>','</s>')"><s>S</s></button>
+                  <button class="rte-btn" title="Insert link" onclick="insertLink(${c.id})">🔗</button>
+                </div>
+                <textarea class="field__textarea" placeholder="Comment text…" oninput="updateComment(${c.id},'body',this.value); validateBody(${c.id})">${esc(c.body)}</textarea>
+              </div>
+              <p class="rte-error">Oops, you might have an HTML error in the comment body.</p>
             </div>
             <md-outlined-text-field label="Image URL (optional)" placeholder="https://…/image.jpg" value="${esc(c.image || '')}" oninput="updateComment(${c.id},'image',this.value)"></md-outlined-text-field>
             ${canAddChild ? `<button class="btn-action" onclick="addComment(${c.id})">+ Add reply to this comment</button>` : '<p class="card__hint">Max nesting depth reached (3 levels).</p>'}
@@ -771,7 +850,7 @@ function renderCommentsHTML(parentId, depth, avatarMap) {
     h += '</div></div>';
     h += '</div>';
     const imgHtml = c.image ? `<img src="${esc(c.image)}" alt="" />` : '';
-    h += `<div class="rp-reply-body"><p>${escNl(c.body)}</p>${imgHtml}</div>`;
+    h += `<div class="rp-reply-body"><p>${c.body}</p>${imgHtml}</div>`;
     // children
     h += renderCommentsHTML(c.id, depth + 1, avatarMap);
     h += '</div>';
@@ -869,11 +948,11 @@ function htmlComments(parentId, depth, lines, avatarMap, indent) {
     lines.push(`${indent}  </div>`);
     if (c.image) {
       lines.push(`${indent}  <div class="reddit-reply-body">`);
-      lines.push(`${indent}    <p>${xescNl(c.body)}</p>`);
+      lines.push(`${indent}    <p>${c.body}</p>`);
       lines.push(`${indent}    <img src="${xesc(c.image)}" alt="" />`);
       lines.push(`${indent}  </div>`);
     } else {
-      lines.push(`${indent}  <div class="reddit-reply-body"><p>${xescNl(c.body)}</p></div>`);
+      lines.push(`${indent}  <div class="reddit-reply-body"><p>${c.body}</p></div>`);
     }
     htmlComments(c.id, depth + 1, lines, avatarMap, indent + '  ');
     lines.push(`${indent}</div>`);
