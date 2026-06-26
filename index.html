@@ -391,6 +391,7 @@
           <div class="rte-wrap" id="rte-post-body">
             <div class="rte-toolbar">
               <button class="rte-btn" title="Bold" onclick="wrapPostBody('<b>','</b>')"><b>B</b></button>
+              <button class="rte-btn" title="Italic" onclick="wrapPostBody('<i>','</i>')"><i>I</i></button>
               <button class="rte-btn" title="Bold &amp; Italic" onclick="wrapPostBody('<b><i>','</i></b>')"><b><i>BI</i></b></button>
               <button class="rte-btn" title="Strikethrough" onclick="wrapPostBody('<s>','</s>')"><s>S</s></button>
               <button class="rte-btn" title="Insert link" onclick="insertPostLink()">🔗</button>
@@ -788,6 +789,7 @@ function renderPanel() {
               <div class="rte-wrap" id="rte-${c.id}">
                 <div class="rte-toolbar">
                   <button class="rte-btn" title="Bold" onclick="wrapSelection(${c.id},'<b>','</b>')"><b>B</b></button>
+                  <button class="rte-btn" title="Italic" onclick="wrapSelection(${c.id},'<i>','</i>')"><i>I</i></button>
                   <button class="rte-btn" title="Bold &amp; Italic" onclick="wrapSelection(${c.id},'<b><i>','</i></b>')"><b><i>BI</i></b></button>
                   <button class="rte-btn" title="Strikethrough" onclick="wrapSelection(${c.id},'<s>','</s>')"><s>S</s></button>
                   <button class="rte-btn" title="Insert link" onclick="insertLink(${c.id})">🔗</button>
